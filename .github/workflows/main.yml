@@ -1,48 +1,45 @@
-name: Deploy to EC2 instance node js
+name: Deploy NodeApp to EC2
 
 on:
   push:
     branches:
-      - main   # change if your branch is different
+      - main   # deploy only when code is pushed to main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repo
-      - name: Checkout code
+      # 1. Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v3
 
-      # 2. Debug secrets (safe check)
-      - name: Debug Secrets
-        run: |
-          echo "Host: ${{ secrets.EC2_HOST }}"
-          echo "User: ${{ secrets.EC2_USER }}"
-          echo "SSH Key length: $(echo "${{ secrets.EC2_SSH_KEY }}" | wc -c)"
-
-      # 3. Copy project files to EC2
-      - name: Upload app to EC2
-        uses: appleboy/scp-action@v0.1.7
+      # 2. Log in to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "./**"
-          target: "~/NODEAPP"
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 4. Connect via SSH and restart the app
-      - name: Restart Node App on EC2
+      # 3. Build Docker image
+      - name: Build Docker image
+        run: docker build -t my-node-app:latest .
+
+      # 4. Tag & Push Docker image
+      - name: Push Docker image to Docker Hub
+        run: |
+          docker tag my-node-app:latest ${{ secrets.DOCKER_USERNAME }}/nodeapp:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/nodeapp:latest
+
+      # 5. SSH into EC2 & Deploy
+      - name: Deploy on EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          
           script: |
-            cd ~/NODEAPP
-            npm install --production
-            pm2 delete nodeapp || true
-            pm2 start app.js --name nodeapp
-            pm2 save
-
+            docker pull ${{ secrets.DOCKER_USERNAME }}/nodeapp:latest
+            docker stop nodeapp || true
+            docker rm nodeapp || true
+            docker run -d --name nodeapp -p 3000:3000 ${{ secrets.DOCKER_USERNAME }}/nodeapp:latest
