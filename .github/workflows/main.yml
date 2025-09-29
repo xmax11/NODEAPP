@@ -1,0 +1,45 @@
+name: Deploy NodeApp to EC2
+
+on:
+  push:
+    branches:
+      - main   # deploy only when code is pushed to main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout code
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      # 2. Log in to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 3. Build Docker image
+      - name: Build Docker image
+        run: docker build -t my-node-app:latest .
+
+      # 4. Tag & Push Docker image
+      - name: Push Docker image to Docker Hub
+        run: |
+          docker tag my-node-app:latest ${{ secrets.DOCKER_USERNAME }}/nodeapp:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/nodeapp:latest
+
+      # 5. SSH into EC2 & Deploy
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull ${{ secrets.DOCKER_USERNAME }}/nodeapp:latest
+            docker stop nodeapp || true
+            docker rm nodeapp || true
+            docker run -d --name nodeapp -p 5000:3000 ${{ secrets.DOCKER_USERNAME }}/nodeapp:latest
