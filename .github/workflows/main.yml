@@ -42,7 +42,7 @@ jobs:
           script: |
             cd ~/NODEAPP
             npm install --production
-            # kill old app if running
-            pkill -f "node app.js" || true
-            # start app in background
-            nohup node app.js > app.log 2>&1 &
+            pm2 delete nodeapp || true
+            pm2 start app.js --name nodeapp
+            pm2 save
+
