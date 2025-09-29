@@ -38,13 +38,11 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          
           script: |
             cd ~/NODEAPP
             npm install --production
-            # kill old app (if running)
-            pkill -f "node server.js" || true
-            # start app in background on EC2 (not in GitHub runner!)
-            nohup node server.js > app.log 2>&1 &
+            # kill old app if running
             pkill -f "node server.js" || true
             # start app in background
             nohup node server.js > app.log 2>&1 &
