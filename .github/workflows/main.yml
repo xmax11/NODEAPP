@@ -43,6 +43,6 @@ jobs:
             cd ~/NODEAPP
             npm install --production
             # kill old app if running
-            pkill -f "node server.js" || true
+            pkill -f "node app.js" || true
             # start app in background
-            nohup node server.js > app.log 2>&1 &
+            nohup node app.js > app.log 2>&1 &
